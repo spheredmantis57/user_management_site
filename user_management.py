@@ -17,20 +17,20 @@ from flask_login import (LoginManager, UserMixin, login_user, login_required,
                          logout_user, current_user)
 
 CURR_DIR = dirname(abspath(__file__))
-STATIC_DIR = join(CURR_DIR, "static")
+templates = join(CURR_DIR, "templates")
 
 # set up to use user created pages IF possible
 DASHBOARD_PAGE = "dashboard.html"
-if not exists(join(STATIC_DIR, DASHBOARD_PAGE)):
+if not exists(join(templates, DASHBOARD_PAGE)):
     DASHBOARD_PAGE = f"~{DASHBOARD_PAGE}"
 INDEX_PAGE = "index.html"
-if not exists(join(STATIC_DIR, INDEX_PAGE)):
+if not exists(join(templates, INDEX_PAGE)):
     INDEX_PAGE = f"~{INDEX_PAGE}"
 LOGIN_PAGE = "login.html"
-if not exists(join(STATIC_DIR, LOGIN_PAGE)):
+if not exists(join(templates, LOGIN_PAGE)):
     LOGIN_PAGE = f"~{LOGIN_PAGE}"
 SIGNUP_PAGE = "signup.html"
-if not exists(join(STATIC_DIR, SIGNUP_PAGE)):
+if not exists(join(templates, SIGNUP_PAGE)):
     SIGNUP_PAGE = f"~{SIGNUP_PAGE}"
 
 def main():
