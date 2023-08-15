@@ -17,13 +17,16 @@ from flask_login import (LoginManager, UserMixin, login_user, login_required,
                          logout_user, current_user)
 
 DASHBOARD_PAGE = "dashboard.html"
+INDEX_PAGE = "index.html"
 
 def main():
     """called if this is the main python file"""
     # use the testing dashboard. If this were not the main file, it could use
-    # the users created dashboard file
+    # the users created dashboard file (same with index page)
     global DASHBOARD_PAGE
     DASHBOARD_PAGE = "~dashboard.html"
+    global INDEX_PAGE
+    INDEX_PAGE = "~index.html"
 
     full_app = create_app()
     init_db(full_app)
@@ -182,7 +185,7 @@ def index():
     Returns:
         str: the html of the page
     """
-    return render_template("index.html")
+    return render_template(INDEX_PAGE)
 
 @USER_MANAGEMENT_BP.route('/static/<path:filename>')
 def serve_static(filename):
