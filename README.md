@@ -6,5 +6,9 @@ starter code/html/css from: [this repo](https://github.com/PrettyPrinted/youtube
 - Added email verification (with verification links)
 
 # things to do:
+- password enforcement
 - the actual sending of the verification link
 - when trying to login, allow the ability to resend the verification link
+- make this actual README lol
+    - add a readme saying how you use it as a submole
+		- replacing the default dashboard (If I give someone access to use this as a submoudle, I need to make sure that I only give them pull ability. I dont want them writing their dashboard to my repo)
