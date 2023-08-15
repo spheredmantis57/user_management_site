@@ -16,8 +16,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import (LoginManager, UserMixin, login_user, login_required,
                          logout_user, current_user)
 
+DASHBOARD_PAGE = "~dashboard.html"
+
 def main():
     """called if this is the main python file"""
+    # use the testing dashboard. If this were not the main file, it could use
+    # the users created dashboard file
+    global DASHBOARD_PAGE
+    DASHBOARD_PAGE = "dashboard.html"
+
     full_app = create_app()
     init_db(full_app)
     full_app.app.run()
@@ -232,7 +239,7 @@ def dashboard():
     Returns:
         str: the html of the dashboard
     """
-    return render_template("dashboard.html", name=current_user.username)
+    return render_template(DASHBOARD_PAGE, name=current_user.username)
 
 @USER_MANAGEMENT_BP.route("/logout")
 @login_required
