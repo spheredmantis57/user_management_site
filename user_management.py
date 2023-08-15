@@ -16,18 +16,25 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import (LoginManager, UserMixin, login_user, login_required,
                          logout_user, current_user)
 
+CURR_DIR = dirname(abspath(__file__))
+STATIC_DIR = join(CURR_DIR, "static")
+
+# set up to use user created pages IF possible
 DASHBOARD_PAGE = "dashboard.html"
+if not exists(join(STATIC_DIR, DASHBOARD_PAGE)):
+    DASHBOARD_PAGE = f"~{DASHBOARD_PAGE}"
 INDEX_PAGE = "index.html"
+if not exists(join(STATIC_DIR, INDEX_PAGE)):
+    INDEX_PAGE = f"~{INDEX_PAGE}"
+LOGIN_PAGE = "login.html"
+if not exists(join(STATIC_DIR, LOGIN_PAGE)):
+    LOGIN_PAGE = f"~{LOGIN_PAGE}"
+SIGNUP_PAGE = "signup.html"
+if not exists(join(STATIC_DIR, SIGNUP_PAGE)):
+    SIGNUP_PAGE = f"~{SIGNUP_PAGE}"
 
 def main():
     """called if this is the main python file"""
-    # use the testing dashboard. If this were not the main file, it could use
-    # the users created dashboard file (same with index page)
-    global DASHBOARD_PAGE
-    DASHBOARD_PAGE = "~dashboard.html"
-    global INDEX_PAGE
-    INDEX_PAGE = "~index.html"
-
     full_app = create_app()
     init_db(full_app)
     full_app.app.run()
@@ -73,7 +80,7 @@ PASSWORD_MAX = 30
 EMAIL_MAX = 50
 TOKEN_LEN = 32
 
-def create_app(database_path=join(dirname(abspath(__file__)), ".login.db")):
+def create_app(database_path=join(CURR_DIR, ".login.db")):
     """Creates a full app for the code using this module
 
     Args:
@@ -220,7 +227,7 @@ def login():
 
     if not form.validate_on_submit():
         # GET request
-        return render_template("login.html", form=form)
+        return render_template(LOGIN_PAGE, form=form)
 
     # POST request - get the user and verify login info (and email validated)
     user = User.query.filter_by(username=form.username.data).first()
@@ -322,7 +329,7 @@ def signup():
 
     if not form.validate_on_submit():
         # it was a GET request
-        return render_template("signup.html", form=form)
+        return render_template(SIGNUP_PAGE, form=form)
 
     # POST request - create the user
     try:

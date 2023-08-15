@@ -2,3 +2,5 @@
 __pycache__
 templates/dashboard.html
 templates/index.html
+templates/signup.html
+templates/login.html
