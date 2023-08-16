@@ -18,26 +18,26 @@ from flask_login import (LoginManager, UserMixin, login_user, login_required,
                          logout_user, current_user)
 
 CURR_DIR = dirname(abspath(__file__))
-templates = join(CURR_DIR, "templates")
+TEMPLATES = join(CURR_DIR, "templates")
 
 # set up to use user created pages IF possible
 DASHBOARD_PAGE = "dashboard.html"
-if not exists(join(templates, DASHBOARD_PAGE)):
+if not exists(join(TEMPLATES, DASHBOARD_PAGE)):
     DASHBOARD_PAGE = f"~{DASHBOARD_PAGE}"
 INDEX_PAGE = "index.html"
-if not exists(join(templates, INDEX_PAGE)):
+if not exists(join(TEMPLATES, INDEX_PAGE)):
     INDEX_PAGE = f"~{INDEX_PAGE}"
 LOGIN_PAGE = "login.html"
-if not exists(join(templates, LOGIN_PAGE)):
+if not exists(join(TEMPLATES, LOGIN_PAGE)):
     LOGIN_PAGE = f"~{LOGIN_PAGE}"
 SIGNUP_PAGE = "signup.html"
-if not exists(join(templates, SIGNUP_PAGE)):
+if not exists(join(TEMPLATES, SIGNUP_PAGE)):
     SIGNUP_PAGE = f"~{SIGNUP_PAGE}"
 FORGOT_PAGE = "forgot.html"
-if not exists(join(templates, FORGOT_PAGE)):
+if not exists(join(TEMPLATES, FORGOT_PAGE)):
     FORGOT_PAGE = f"~{FORGOT_PAGE}"
 RECOVER_PAGE = "recover.html"
-if not exists(join(templates, RECOVER_PAGE)):
+if not exists(join(TEMPLATES, RECOVER_PAGE)):
     RECOVER_PAGE = f"~{RECOVER_PAGE}"
 
 def main():
@@ -264,6 +264,12 @@ class ForgotForm(FlaskForm):
 
 @USER_MANAGEMENT_BP.route("/forgot", methods=["GET", "POST"])
 def forgot():
+    """handles the forgot password/username (GET for form to submit, PUT to
+    get email for recovery)
+
+    Returns:
+        str: the next page to display
+    """
     form = ForgotForm()
 
     if not form.validate_on_submit():
@@ -299,6 +305,15 @@ class RecoverForm(FlaskForm):
 
 @USER_MANAGEMENT_BP.route("/recover/<token>", methods=["GET", "POST"])
 def recover_account(token):
+    """handles the recovery of an account (GET form to change password,
+    POST updating the password)
+
+    Args:
+        token (str): the token to verify the recovery
+
+    Returns:
+        str: the page to display next
+    """
     form = RecoverForm()
 
     # make sure this is a valid token

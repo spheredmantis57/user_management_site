@@ -6,11 +6,9 @@ starter code/html/css from: [this repo](https://github.com/PrettyPrinted/youtube
 - Added email verification (with verification links)
 
 # things to do
-- login have a link to sign up
-- login have a way to reset password (send to email)
-- sign up have a link to login
+- login and recover need a2nd password field that they must match (do that in python or in html>)
 - when trying to login, allow the ability to resend the verification link
-- make the Uncompleted pages (for a lot, could just have flash to login or sign up)
+- make the Uncompleted pages (for a lot, could just have flash to login or sign up) - Ctrl-F for (return ")
 
 - password enforcement
 - the actual sending of the verification link
