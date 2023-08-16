@@ -2,6 +2,7 @@
 User management module will allow for user signup (with email verification),
 login, logout, and a dashboard. Logout and dashboard show off
 """
+from datetime import datetime
 from dataclasses import dataclass
 from random import choice as rand_choice
 from string import ascii_letters, digits
@@ -32,6 +33,12 @@ if not exists(join(templates, LOGIN_PAGE)):
 SIGNUP_PAGE = "signup.html"
 if not exists(join(templates, SIGNUP_PAGE)):
     SIGNUP_PAGE = f"~{SIGNUP_PAGE}"
+FORGOT_PAGE = "forgot.html"
+if not exists(join(templates, FORGOT_PAGE)):
+    FORGOT_PAGE = f"~{FORGOT_PAGE}"
+RECOVER_PAGE = "recover.html"
+if not exists(join(templates, RECOVER_PAGE)):
+    RECOVER_PAGE = f"~{RECOVER_PAGE}"
 
 def main():
     """called if this is the main python file"""
@@ -141,10 +148,12 @@ class ValidationToken(UserMixin, DATABASE.Model):
     validation_token (str) - the validation token to compare against for the
                              validation link
     user_id (int) - a foreign key from the user table
+    created_at (datetime) - a timestamp of when the token was created
     """
     validation_token = DATABASE.Column(DATABASE.String(TOKEN_LEN), unique=True,
                                        nullable=False, primary_key=True)
     user_id = DATABASE.Column(DATABASE.Integer, DATABASE.ForeignKey('user.id'))
+    created_at = DATABASE.Column(DATABASE.DateTime, default=datetime.utcnow)
     user = DATABASE.relationship("User", back_populates="validation_tokens")
 
 class LoginForm(FlaskForm):
@@ -241,6 +250,97 @@ def login():
     login_user(user, remember=form.remember.data)
     return redirect(url_for("user_management.dashboard"))
 
+class ForgotForm(FlaskForm):
+    """A FlaskForm for recovering account
+
+    email (str)
+    """
+    email = StringField(
+        "email",
+        validators=[InputRequired(),
+                    Email(message="Invalid email"),
+                    Length(max=EMAIL_MAX)]
+        )
+
+@USER_MANAGEMENT_BP.route("/forgot", methods=["GET", "POST"])
+def forgot():
+    form = ForgotForm()
+
+    if not form.validate_on_submit():
+        # it was a GET request
+        return render_template(FORGOT_PAGE, form=form)
+
+    # find user associated with email
+    query_user = User.query.filter_by(email=form.email.data).first()
+    if query_user is None:
+        flash("An account is not associated with this email.", "warning")
+        return redirect(url_for("user_management.forgot"))
+
+    # gen token to send to email
+    token = generate_verification_token()
+    send_recover_email(query_user.email, token, query_user.username)
+    validation_token = ValidationToken(validation_token=token, user=query_user)
+
+    # save the changes
+    DATABASE.session.add(validation_token)
+    DATABASE.session.commit()
+    flash("A recovery link has been sent to your email.", "warning")
+    return redirect(url_for("user_management.login"))
+
+class RecoverForm(FlaskForm):
+    """A FlaskForm for recovering password
+
+    password (str)
+    """
+    password = PasswordField(
+        "password",
+        validators=[InputRequired(), Length(min=PASSWORD_MIN, max=PASSWORD_MAX)]
+        )
+
+@USER_MANAGEMENT_BP.route("/recover/<token>", methods=["GET", "POST"])
+def recover_account(token):
+    form = RecoverForm()
+
+    # make sure this is a valid token
+    validation_token = (
+        DATABASE.session
+        .query(ValidationToken)
+        .filter_by(validation_token=token)
+        .first())
+
+    if not validation_token:
+        # token not in database
+        flash("Invalid or expired link.", "warning")
+        return redirect(url_for("user_management.login"))
+
+    #valid token
+    if not form.validate_on_submit():
+        # it was a GET request
+        return render_template(RECOVER_PAGE, form=form)
+
+    # after verifying token and getting new password, update
+    user = validation_token.user
+    user.password = generate_password_hash(form.password.data, method="scrypt")
+    DATABASE.session.delete(validation_token)
+    DATABASE.session.commit()
+    flash("Password has been changed. Please login.", "warning")
+    return redirect(url_for("user_management.login"))
+
+def send_recover_email(email, token, username):
+    """Sends the email with the recovery link
+
+    Args:
+        email (str): the email of the user
+        token (str): the unique generated token
+        username (str): the name of the user
+    """
+    verification_link = url_for("user_management.recover_account", token=token, _external=True)
+    subject = "Recover Your Account"
+    message = (f"Your username is: {username}\n\nClick the following link to "
+               f"change your password your email: {verification_link}\n\nIf you"
+               " did not request this, please ignore.")
+    send_email(email, subject, message)
+
 @USER_MANAGEMENT_BP.route("/dashboard")
 @login_required
 def dashboard():
@@ -275,6 +375,20 @@ def generate_token(length):
     token = ''.join(rand_choice(characters) for _ in range(length))
     return token
 
+def generate_verification_token():
+    """uses token generation to get a token that has not been taken yet
+
+    Returns:
+        str: the valid token
+    """
+    # loop till we generate a token that has not been taken yet
+    while True:
+        token = generate_token(TOKEN_LEN)
+        existing_token = ValidationToken.query.filter_by(validation_token=token).first()
+        if existing_token is None:
+            break
+    return token
+
 @USER_MANAGEMENT_BP.route("/verify/<token>")
 def verify_email(token):
     """Used when a user click on their verification link
@@ -294,7 +408,7 @@ def verify_email(token):
 
     if not validation_token:
         # token not in database
-        return "<h1>Invalid or expired token.</h1>"
+        return "<h1>Invalid or expired link.</h1>"
 
     # verify the user with this token
     user = validation_token.user
@@ -303,9 +417,6 @@ def verify_email(token):
     DATABASE.session.commit()
     return "<h1>Email has been verified!</h1>"
 
-
-# todo create an email that will send this email out
-# todo watch https://www.youtube.com/watch?v=vF9n248M1yk to get the info how to send it
 def send_verification_email(email, token):
     """Sends the email with the verification link
 
@@ -316,7 +427,19 @@ def send_verification_email(email, token):
     verification_link = url_for("user_management.verify_email", token=token, _external=True)
     subject = "Verify Your Email"
     message = f"Click the following link to verify your email: {verification_link}"
-    print(f"Email sent to {email} with verification link: {verification_link}")
+    send_email(email, subject, message)
+
+# todo create an email that will send this email out
+# todo watch https://www.youtube.com/watch?v=vF9n248M1yk to get the info how to send it
+def send_email(email, subject, content):
+    """send an email
+
+    Args:
+        email (str): the email address to send to
+        subject (str): the email subject
+        content (str): the body of the email
+    """
+    print(f"send email: I would email '{email}' with\n'{subject}:\n\t{content}'")
 
 @USER_MANAGEMENT_BP.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -337,12 +460,7 @@ def signup():
     except UserAlreadyExists as ex:
         return f"<h1>Cannot create: {ex}</h1>"
 
-    # loop till we generate a token that has not been taken yet
-    while True:
-        token = generate_token(TOKEN_LEN)
-        existing_token = ValidationToken.query.filter_by(validation_token=token).first()
-        if existing_token is None:
-            break
+    token = generate_verification_token()
     validation_token = ValidationToken(validation_token=token, user=new_user)
 
     # save the changed and send the email

@@ -5,10 +5,15 @@ starter code/html/css from: [this repo](https://github.com/PrettyPrinted/youtube
 - Modularized
 - Added email verification (with verification links)
 
-# things to do:
+# things to do
+- login have a link to sign up
+- login have a way to reset password (send to email)
+- sign up have a link to login
+- when trying to login, allow the ability to resend the verification link
+- make the Uncompleted pages (for a lot, could just have flash to login or sign up)
+
 - password enforcement
 - the actual sending of the verification link
-- when trying to login, allow the ability to resend the verification link
 - make this actual README lol
     - add a readme saying how you use it as a submole
 		- replacing the default dashboard (If I give someone access to use this as a submoudle, I need to make sure that I only give them pull ability. I dont want them writing their dashboard to my repo)
