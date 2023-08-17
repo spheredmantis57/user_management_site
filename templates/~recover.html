@@ -17,6 +17,7 @@ Sign Up
     <h2 class="form-signin-heading">Change password</h2>
     {{ form.hidden_tag() }}
     {{ wtf.form_field(form.password) }}
+    {{ wtf.form_field(form.password_confirm) }}
     <button class="btn btn-lg btn-primary btn-block" type="submit">Change</button>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}

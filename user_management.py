@@ -11,7 +11,7 @@ from flask import Flask, render_template, redirect, url_for, flash, Blueprint, s
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField
-from wtforms.validators import InputRequired, Email, Length
+from wtforms.validators import InputRequired, Email, Length, EqualTo
 from flask_sqlalchemy  import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import (LoginManager, UserMixin, login_user, login_required,
@@ -126,6 +126,25 @@ def init_db(full_app):
         with full_app.app.app_context():
             DATABASE.create_all()
 
+### Common Fields Begin
+EMAIL_FIELD = dict(
+    label="Email",
+    validators=[InputRequired(),
+                Email(message="Invalid email"),
+                Length(max=EMAIL_MAX)]
+    )
+
+PASSWORD_FIELD = dict(
+    label="Password",
+    validators=[InputRequired(), Length(min=PASSWORD_MIN, max=PASSWORD_MAX)]
+    )
+
+PASSWORD_CONFIRM_FIELD = dict(
+    label="Confirm Password",
+    validators=[InputRequired(), EqualTo('password', message='Passwords must match')]
+    )
+### Common Fields End
+
 class User(UserMixin, DATABASE.Model):
     """A User table for the database
 
@@ -166,10 +185,7 @@ class LoginForm(FlaskForm):
         "username",
         validators=[InputRequired(), Length(min=USERNAME_MIN, max=USERNAME_MAX)]
         )
-    password = PasswordField(
-        "password",
-        validators=[InputRequired(), Length(min=PASSWORD_MIN, max=PASSWORD_MAX)]
-        )
+    password = PasswordField(**PASSWORD_FIELD)
     remember = BooleanField("remember me")
 
 class RegisterForm(FlaskForm):
@@ -178,21 +194,15 @@ class RegisterForm(FlaskForm):
     email (str)
     username (str)
     password (str)
+    password_confirm (str)
     """
-    email = StringField(
-        "email",
-        validators=[InputRequired(),
-                    Email(message="Invalid email"),
-                    Length(max=EMAIL_MAX)]
-        )
+    email = StringField(**EMAIL_FIELD)
     username = StringField(
         "username",
         validators=[InputRequired(), Length(min=USERNAME_MIN, max=USERNAME_MAX)]
         )
-    password = PasswordField(
-        "password",
-        validators=[InputRequired(), Length(min=PASSWORD_MIN, max=PASSWORD_MAX)]
-        )
+    password = PasswordField(**PASSWORD_FIELD)
+    password_confirm = PasswordField(**PASSWORD_CONFIRM_FIELD)
 
 @USER_MANAGEMENT_BP.route("/")
 def index():
@@ -243,7 +253,6 @@ def login():
     if (user is None) or (check_password_hash(user.password, form.password.data) is False):
         return "<h1>Invalid username or password</h1>"
     if user.email_verified is False:
-        # todo look at return
         return "<h1>Need to verify email before logging in. NEED TO HAVE AN OPTION TO RESEND</h1>"
 
     # login and go to user dashboard
@@ -255,12 +264,7 @@ class ForgotForm(FlaskForm):
 
     email (str)
     """
-    email = StringField(
-        "email",
-        validators=[InputRequired(),
-                    Email(message="Invalid email"),
-                    Length(max=EMAIL_MAX)]
-        )
+    email = StringField(**EMAIL_FIELD)
 
 @USER_MANAGEMENT_BP.route("/forgot", methods=["GET", "POST"])
 def forgot():
@@ -294,14 +298,13 @@ def forgot():
     return redirect(url_for("user_management.login"))
 
 class RecoverForm(FlaskForm):
-    """A FlaskForm for recovering password
+    """A FlaskForm for changing password
 
     password (str)
+    password_confirm (str)
     """
-    password = PasswordField(
-        "password",
-        validators=[InputRequired(), Length(min=PASSWORD_MIN, max=PASSWORD_MAX)]
-        )
+    password = PasswordField(**PASSWORD_FIELD)
+    password_confirm = PasswordField(**PASSWORD_CONFIRM_FIELD)
 
 @USER_MANAGEMENT_BP.route("/recover/<token>", methods=["GET", "POST"])
 def recover_account(token):
