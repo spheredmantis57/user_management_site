@@ -5,12 +5,13 @@ login, logout, and a dashboard. Logout and dashboard show off
 from datetime import datetime
 from dataclasses import dataclass
 from random import choice as rand_choice
+import re
 from string import ascii_letters, digits
 from os.path import dirname, abspath, join, exists
 from flask import Flask, render_template, redirect, url_for, flash, Blueprint, send_from_directory
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField
+from wtforms import StringField, PasswordField, BooleanField, ValidationError
 from wtforms.validators import InputRequired, Email, Length, EqualTo
 from flask_sqlalchemy  import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -86,6 +87,10 @@ PASSWORD_MIN = 8
 PASSWORD_MAX = 30
 EMAIL_MAX = 50
 TOKEN_LEN = 32
+SPECIAL_CHARS = "!@#$%^&*(),.?:{}|<>"
+PASSWORD_COMPLEXITY_ERROR = \
+    (f"Password must contain at least one uppercase letter, one lowercase "
+     "letter, one digit, and one special symbol [ {SPECIAL_CHARS} ].")
 
 def create_app(database_path=join(CURR_DIR, ".login.db")):
     """Creates a full app for the code using this module
@@ -134,9 +139,30 @@ EMAIL_FIELD = dict(
                 Length(max=EMAIL_MAX)]
     )
 
+def validate_password_complexity(form, field):
+    """used as a FlaskForm validator on passwords to enforce strong passwords
+
+    Raises:
+        ValidationError: did not follow complexity rules
+    """
+    password = field.data
+    if (
+            # min one uppercase letter
+            not re.search(r"[A-Z]", password) or
+            # min one lowercase letter
+            not re.search(r"[a-z]", password) or
+            # min one digit
+            not re.search(r"\d", password) or
+            # min one special symbol
+            not re.search(fr"[{SPECIAL_CHARS}]", password)
+    ):
+        raise ValidationError(PASSWORD_COMPLEXITY_ERROR)
+
 PASSWORD_FIELD = dict(
     label="Password",
-    validators=[InputRequired(), Length(min=PASSWORD_MIN, max=PASSWORD_MAX)]
+    validators=[InputRequired(),
+                Length(min=PASSWORD_MIN, max=PASSWORD_MAX),
+                validate_password_complexity]
     )
 
 PASSWORD_CONFIRM_FIELD = dict(
