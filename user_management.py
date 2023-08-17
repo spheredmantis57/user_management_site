@@ -251,7 +251,8 @@ def login():
     # POST request - get the user and verify login info (and email validated)
     user = User.query.filter_by(username=form.username.data).first()
     if (user is None) or (check_password_hash(user.password, form.password.data) is False):
-        return "<h1>Invalid username or password</h1>"
+        flash("Invalid username or password.", "warning")
+        return redirect(url_for("user_management.login"))
     if user.email_verified is False:
         validation_token = (
             DATABASE.session
@@ -442,14 +443,16 @@ def verify_email(token):
 
     if not validation_token:
         # token not in database
-        return "<h1>Invalid or expired link.</h1>"
+        flash("Invalid or expired link.", "warning")
+        return redirect(url_for("user_management.login"))
 
     # verify the user with this token
     user = validation_token.user
     user.email_verified = True
     DATABASE.session.delete(validation_token)
     DATABASE.session.commit()
-    return "<h1>Email has been verified!</h1>"
+    flash("Email has been verified!", "warning")
+    return redirect(url_for("user_management.login"))
 
 def send_verification_email(email, token):
     """Sends the email with the verification link
@@ -504,7 +507,8 @@ def signup():
     except UserAlreadyExists as ex:
         return f"<h1>Account Creation Failed: {ex}</h1>"
     send_verification_email(form.email.data, token)
-    return "<h1>New user has been created! Check your email to verify.</h1>"
+    flash("New user has been created! Check your email to verify.", "warning")
+    return redirect(url_for("user_management.login"))
 
 def add_user(username, password, email, email_verified=False):
     """Adds a user to the User table of the database
