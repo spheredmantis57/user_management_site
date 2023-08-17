@@ -198,7 +198,7 @@ class RegisterForm(FlaskForm):
     """
     email = StringField(**EMAIL_FIELD)
     username = StringField(
-        "username",
+        "User Name",
         validators=[InputRequired(), Length(min=USERNAME_MIN, max=USERNAME_MAX)]
         )
     password = PasswordField(**PASSWORD_FIELD)
@@ -253,7 +253,23 @@ def login():
     if (user is None) or (check_password_hash(user.password, form.password.data) is False):
         return "<h1>Invalid username or password</h1>"
     if user.email_verified is False:
-        return "<h1>Need to verify email before logging in. NEED TO HAVE AN OPTION TO RESEND</h1>"
+        validation_token = (
+            DATABASE.session
+            .query(ValidationToken)
+            .filter_by(user_id=user.id)
+            .first())
+        if validation_token is None:
+            # some how a non-verified user does not have a verification token
+            token = generate_verification_token()
+            validation_token = ValidationToken(validation_token=token, user=user)
+            DATABASE.session.add(validation_token)
+            DATABASE.session.commit()
+        # resend verification email
+        send_verification_email(user.email, validation_token.validation_token)
+        message = ("You need to verify your account first. Your verification "
+                   "email has been re-sent. Please use the verification link.")
+        flash(message, "warning")
+        return redirect(url_for("user_management.login"))
 
     # login and go to user dashboard
     login_user(user, remember=form.remember.data)
