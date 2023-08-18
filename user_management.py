@@ -443,14 +443,13 @@ def unlock_account(token):
     if not validation_token:
         # token not in database
         flash("Invalid or expired link.", "warning")
-        return redirect(url_for("user_management.login"))
-
-    # verify the user with this token
-    user = validation_token.user
-    user.failed_logins = 0  # reset failed logins
-    DATABASE.session.delete(validation_token)
-    DATABASE.session.commit()
-    flash("Account has been unlocked!", "warning")
+    else:
+        # verify the user with this token
+        user = validation_token.user
+        user.failed_logins = 0  # reset failed logins
+        DATABASE.session.delete(validation_token)
+        DATABASE.session.commit()
+        flash("Account has been unlocked!", "warning")
     return redirect(url_for("user_management.login"))
 
 def send_unlock_email(email, token):
@@ -554,14 +553,13 @@ def verify_email(token):
     if not validation_token:
         # token not in database
         flash("Invalid or expired link.", "warning")
-        return redirect(url_for("user_management.login"))
-
-    # verify the user with this token
-    user = validation_token.user
-    user.email_verified = True
-    DATABASE.session.delete(validation_token)
-    DATABASE.session.commit()
-    flash("Email has been verified!", "warning")
+    else:
+        # verify the user with this token
+        user = validation_token.user
+        user.email_verified = True
+        DATABASE.session.delete(validation_token)
+        DATABASE.session.commit()
+        flash("Email has been verified!", "warning")
     return redirect(url_for("user_management.login"))
 
 def send_verification_email(email, token):
