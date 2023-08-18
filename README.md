@@ -8,9 +8,8 @@ starter code/html/css from: [this repo](https://github.com/PrettyPrinted/youtube
 - Flashed information to make errors more obvious
 
 # things to do
-- account lock out if they try to brute force...
 - the actual sending of the verification link
 - make this actual README lol
-    - add a readme saying how you use it as a submole
-		- replacing the default dashboard (If I give someone access to use this as a submoudle, I need to make sure that I only give them pull ability. I dont want them writing their dashboard to my repo)
+    - add a readme saying how you use it as a submodule
+		- replacing the default dashboard (If I give someone access to use this as a submodule, I need to make sure that I only give them pull ability. I dont want them writing their dashboard to my repo)
         - explain the ~ for tester html pages (should I do this through the create_app() so they can use their own login and set up?)

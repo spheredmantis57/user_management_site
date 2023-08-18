@@ -87,6 +87,7 @@ PASSWORD_MIN = 8
 PASSWORD_MAX = 30
 EMAIL_MAX = 50
 TOKEN_LEN = 32
+MAX_FAILED_LOGIN = 5  # lock out at 5 failed logins
 SPECIAL_CHARS = "!@#$%^&*(),.?:{}|<>"
 PASSWORD_COMPLEXITY_ERROR = \
     (f"Password must contain at least one uppercase letter, one lowercase "
@@ -130,6 +131,7 @@ def init_db(full_app):
     if not exists(full_app.db_path):
         with full_app.app.app_context():
             DATABASE.create_all()
+            DATABASE.session.commit()
 
 ### Common Fields Begin
 EMAIL_FIELD = dict(
@@ -185,6 +187,7 @@ class User(UserMixin, DATABASE.Model):
     email = DATABASE.Column(DATABASE.String(EMAIL_MAX), unique=True, nullable=False)
     password = DATABASE.Column(DATABASE.String(PASSWORD_MAX), nullable=False)
     email_verified = DATABASE.Column(DATABASE.Boolean, default=False)
+    failed_logins = DATABASE.Column(DATABASE.Integer, default=0)
     validation_tokens = DATABASE.relationship("ValidationToken", back_populates="user")
 
 class ValidationToken(UserMixin, DATABASE.Model):
@@ -276,32 +279,50 @@ def login():
 
     # POST request - get the user and verify login info (and email validated)
     user = User.query.filter_by(username=form.username.data).first()
-    if (user is None) or (check_password_hash(user.password, form.password.data) is False):
+    if user is None:
         flash("Invalid username or password.", "warning")
         return redirect(url_for("user_management.login"))
+
+    # check to make sure they have verified their email
     if user.email_verified is False:
-        validation_token = (
-            DATABASE.session
-            .query(ValidationToken)
-            .filter_by(user_id=user.id)
-            .first())
-        if validation_token is None:
-            # some how a non-verified user does not have a verification token
-            token = generate_verification_token()
-            validation_token = ValidationToken(validation_token=token, user=user)
-            DATABASE.session.add(validation_token)
-            DATABASE.session.commit()
+        validation_token = generate_verification_token(user)
         # resend verification email
-        send_verification_email(user.email, validation_token.validation_token)
-        message = ("You need to verify your account first. Your verification "
-                   "email has been re-sent. Please use the verification link.")
+        send_verification_email(user.email, validation_token)
+        message = ("This email has not clicked their verification link.")
         flash(message, "warning")
         return redirect(url_for("user_management.login"))
+
+    # check for brute force attacks
+    print(f"{user.failed_logins = }")
+    message = "Account locked. An unlock email has been sent"
+    if user.failed_logins >= MAX_FAILED_LOGIN:
+        # previously locked due to brute force
+        validation_token = generate_verification_token(user)
+        send_unlock_email(user.email, validation_token)
+        flash(message, "warning")
+        return redirect(url_for("user_management.login"))
+    if check_password_hash(user.password, form.password.data) is False:
+        # wrong password, track
+        user.failed_logins += 1
+        DATABASE.session.commit()
+        if not user.failed_logins >= MAX_FAILED_LOGIN:
+            message = "Invalid username or password."
+        else:
+            # just now locked due to brute force
+            validation_token = generate_verification_token(user)
+            send_unlock_email(user.email, validation_token)
+        flash(message, "warning")
+        return redirect(url_for("user_management.login"))
+
+    # reset attempts if successful
+    user.failed_logins = 0
+    DATABASE.session.commit()
 
     # login and go to user dashboard
     login_user(user, remember=form.remember.data)
     return redirect(url_for("user_management.dashboard"))
 
+### Recovery Start
 class ForgotForm(FlaskForm):
     """A FlaskForm for recovering account
 
@@ -330,13 +351,8 @@ def forgot():
         return redirect(url_for("user_management.forgot"))
 
     # gen token to send to email
-    token = generate_verification_token()
+    token = generate_verification_token(query_user)
     send_recover_email(query_user.email, token, query_user.username)
-    validation_token = ValidationToken(validation_token=token, user=query_user)
-
-    # save the changes
-    DATABASE.session.add(validation_token)
-    DATABASE.session.commit()
     flash("A recovery link has been sent to your email.", "warning")
     return redirect(url_for("user_management.login"))
 
@@ -382,6 +398,8 @@ def recover_account(token):
     # after verifying token and getting new password, update
     user = validation_token.user
     user.password = generate_password_hash(form.password.data, method="scrypt")
+    # resetting password means its them to our knowledge since they accessed the email
+    user.failed_logins = 0
     DATABASE.session.delete(validation_token)
     DATABASE.session.commit()
     flash("Password has been changed. Please login.", "warning")
@@ -401,6 +419,54 @@ def send_recover_email(email, token, username):
                f"change your password your email: {verification_link}\n\nIf you"
                " did not request this, please ignore.")
     send_email(email, subject, message)
+# Recovery End
+
+# Unlock Start
+@USER_MANAGEMENT_BP.route("/unlock/<token>")
+def unlock_account(token):
+    # todo look at verify and recover to see how I can functionalize out Context manage?
+    """Used when a user click on their unlock link
+
+    Args:
+        token (str): the token embedded in the link
+
+    Returns:
+        str: the html page to display to the user
+    """
+    # get the token from the database
+    validation_token = (
+        DATABASE.session
+        .query(ValidationToken)
+        .filter_by(validation_token=token)
+        .first())
+
+    if not validation_token:
+        # token not in database
+        flash("Invalid or expired link.", "warning")
+        return redirect(url_for("user_management.login"))
+
+    # verify the user with this token
+    user = validation_token.user
+    user.failed_logins = 0  # reset failed logins
+    DATABASE.session.delete(validation_token)
+    DATABASE.session.commit()
+    flash("Account has been unlocked!", "warning")
+    return redirect(url_for("user_management.login"))
+
+def send_unlock_email(email, token):
+    """Sends the email with the unlock link
+
+    Args:
+        email (str): the email of the user
+        token (str): the unique generated token
+    """
+    verification_link = url_for("user_management.unlock_account", token=token, _external=True)
+    subject = "Your account has been locked due to too many failed login attempts."
+    message = (f"Click the following link to unlock: {verification_link}.\n"
+               "If you did not cause this, we suggest changing your "
+               "password as well.")
+    send_email(email, subject, message)
+# Unlock End
 
 @USER_MANAGEMENT_BP.route("/dashboard")
 @login_required
@@ -436,19 +502,37 @@ def generate_token(length):
     token = ''.join(rand_choice(characters) for _ in range(length))
     return token
 
-def generate_verification_token():
-    """uses token generation to get a token that has not been taken yet
+def generate_verification_token(user):
+    """gives a user a generation token if needed (this commits the changes)
+
+    Args:
+        user (User): the user that needs a validation token
 
     Returns:
-        str: the valid token
+        str: the token added to the user (or the current one it already has)
     """
-    # loop till we generate a token that has not been taken yet
+    validation_token = (
+        DATABASE.session
+        .query(ValidationToken)
+        .filter_by(user_id=user.id)
+        .first())
+    if validation_token is not None:
+        # already has a token
+        return validation_token.validation_token
+
+    # needs a token - loop till we generate a token that has not been taken yet
     while True:
         token = generate_token(TOKEN_LEN)
         existing_token = ValidationToken.query.filter_by(validation_token=token).first()
         if existing_token is None:
+            # found a unique token
             break
-    return token
+
+    # add and give back
+    validation_token = ValidationToken(validation_token=token, user=user)
+    DATABASE.session.add(validation_token)
+    DATABASE.session.commit()
+    return validation_token.validation_token
 
 @USER_MANAGEMENT_BP.route("/verify/<token>")
 def verify_email(token):
@@ -523,15 +607,12 @@ def signup():
     except UserAlreadyExists as ex:
         return f"<h1>Cannot create: {ex}</h1>"
 
-    token = generate_verification_token()
-    validation_token = ValidationToken(validation_token=token, user=new_user)
-
-    # save the changed and send the email
+    # get token send the email
     try:
-        DATABASE.session.add(validation_token)
-        DATABASE.session.commit()
+        token = generate_verification_token(new_user)
     except UserAlreadyExists as ex:
-        return f"<h1>Account Creation Failed: {ex}</h1>"
+        flash(f"Account Creation Failed: {ex}", "warning")
+        return redirect(url_for("user_management.login"))
     send_verification_email(form.email.data, token)
     flash("New user has been created! Check your email to verify.", "warning")
     return redirect(url_for("user_management.login"))
