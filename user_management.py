@@ -634,7 +634,8 @@ def signup():
     try:
         new_user = add_user(form.username.data, form.password.data, form.email.data)
     except UserAlreadyExists as ex:
-        return f"<h1>Cannot create: {ex}</h1>"
+        flash(f"Cannot create: {ex}", "warning")
+        return redirect(url_for("user_management.login"))
 
     # get token send the email
     try:
