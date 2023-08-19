@@ -197,6 +197,18 @@ def validate_password_complexity(form, field):
     ):
         raise ValidationError(PASSWORD_COMPLEXITY_ERROR)
 
+def validate_username_complexity(form, field):
+    """used as a FlaskForm validator on usernames to disallow characters
+
+    Raises:
+        ValidationError: did not follow rules
+    """
+    username = field.data
+    allowed_pattern = r"^[a-zA-Z0-9_]+$"
+
+    if not re.match(allowed_pattern, username):
+        raise ValidationError("Username can only contain letters, numbers, and underscores.")
+
 PASSWORD_FIELD = dict(
     label="Password",
     validators=[InputRequired(),
@@ -265,7 +277,9 @@ class RegisterForm(FlaskForm):
     email = StringField(**EMAIL_FIELD)
     username = StringField(
         "User Name",
-        validators=[InputRequired(), Length(min=USERNAME_MIN, max=USERNAME_MAX)]
+        validators=[InputRequired(),
+                    Length(min=USERNAME_MIN, max=USERNAME_MAX),
+                    validate_username_complexity]
         )
     password = PasswordField(**PASSWORD_FIELD)
     password_confirm = PasswordField(**PASSWORD_CONFIRM_FIELD)
