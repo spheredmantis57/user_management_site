@@ -18,7 +18,7 @@ from wtforms.validators import InputRequired, Email, Length, EqualTo
 from flask_sqlalchemy  import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import (LoginManager, UserMixin, login_user, login_required,
-                         logout_user, current_user)
+                         logout_user, current_user, fresh_login_required)
 
 CURR_DIR = dirname(abspath(__file__))
 TEMPLATES = join(CURR_DIR, "templates")
@@ -42,6 +42,12 @@ if not exists(join(TEMPLATES, FORGOT_PAGE)):
 RECOVER_PAGE = "recover.html"
 if not exists(join(TEMPLATES, RECOVER_PAGE)):
     RECOVER_PAGE = f"~{RECOVER_PAGE}"
+EMAIL_UPDATE_PAGE = "update_email.html"
+if not exists(join(TEMPLATES, EMAIL_UPDATE_PAGE)):
+    EMAIL_UPDATE_PAGE = f"~{EMAIL_UPDATE_PAGE}"
+PASSWORD_UPDATE_PAGE = "update_password.html"
+if not exists(join(TEMPLATES, PASSWORD_UPDATE_PAGE)):
+    PASSWORD_UPDATE_PAGE = f"~{PASSWORD_UPDATE_PAGE}"
 
 def main():
     """called if this is the main python file"""
@@ -603,8 +609,6 @@ def send_verification_email(email, token):
     message = f"Click the following link to verify your email: {verification_link}"
     send_email(email, subject, message)
 
-# todo create an email that will send this email out
-# todo watch https://www.youtube.com/watch?v=vF9n248M1yk to get the info how to send it
 def send_email(email, subject, content):
     """send an email
 
@@ -683,6 +687,69 @@ def add_user(username, password, email, email_verified=False):
     DATABASE.session.add(new_user)
     DATABASE.session.commit()
     return new_user
+
+class UpdateEmailForm(FlaskForm):
+    """FlaskForm to change a users email
+    """
+    new_email = StringField(**EMAIL_FIELD)
+    email_confirm = StringField(label="Confirm Password",
+                                validators=[InputRequired(),
+                                            EqualTo('new_email', message='Emails must match.')])
+    password = PasswordField(**PASSWORD_FIELD)
+
+class UpdatePasswordForm(FlaskForm):
+    """FlaskForm to change a logged in users password
+    """
+    old_password = PasswordField(label="Old Password", validators=[InputRequired()])
+    password = PasswordField(**PASSWORD_FIELD)
+    password_confirm = PasswordField(**PASSWORD_CONFIRM_FIELD)
+
+@USER_MANAGEMENT_BP.route("/update_email", methods=["GET", "POST"])
+@fresh_login_required
+def update_email():
+    """updates a users email
+
+    Returns:
+        str: the html of the page to display net
+    """
+    form = UpdateEmailForm()
+
+    if form.validate_on_submit():
+        # POST
+        user = current_user
+        if check_password_hash(user.password, form.password.data):
+            user.email = form.new_email.data
+            DATABASE.session.commit()
+            flash("Email updated successfully.", "success")
+        else:
+            flash("Incorrect password.", "warning")
+
+    # GET
+    return render_template(EMAIL_UPDATE_PAGE, form=form)
+
+@USER_MANAGEMENT_BP.route("/update_password", methods=["GET", "POST"])
+@fresh_login_required
+def update_password():
+    """updates a logged in users password
+
+    Returns:
+        str: the html of the page to display net
+    """
+    form = UpdatePasswordForm()
+
+    if form.validate_on_submit():
+        # POST
+        user = current_user
+        if check_password_hash(user.password, form.old_password.data):
+            user.password = generate_password_hash(form.password.data, method="scrypt")
+            DATABASE.session.commit()
+            flash("Password updated successfully. Please log back in.", "success")
+            logout_user()
+            return redirect(url_for("user_management.login"))
+        flash("Incorrect password.", "warning")
+
+    # GET
+    return render_template(PASSWORD_UPDATE_PAGE, form=form)
 
 ########################## END: SIGNING UP ###################################
 

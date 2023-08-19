@@ -21,7 +21,8 @@ Login
         {{ wtf.form_field(form.remember) }}
         <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
         <a href="{{ url_for('user_management.forgot') }}">Forgot username or password?</a>
-        <a href="{{ url_for('user_management.signup') }}">Sign Up</a>
+        <a href="{{ url_for('user_management.signup') }}">Sign Up</a><br>
+        <a href="{{ url_for('user_management.index') }}">Back</a>
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
