@@ -6,9 +6,11 @@ from datetime import datetime
 from dataclasses import dataclass
 from random import choice as rand_choice
 import re
+from json import load as json_load
 from string import ascii_letters, digits
 from os.path import dirname, abspath, join, exists
 from flask import Flask, render_template, redirect, url_for, flash, Blueprint, send_from_directory
+from flask_mail import Mail, Message
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, ValidationError
@@ -57,6 +59,7 @@ class AppWithUserManagement:
     app: Flask
     database: SQLAlchemy
     db_path: str
+    mail: Mail
 
 class UserAlreadyExists(Exception):
     """Exception for a user already exists when trying to add a user"""
@@ -68,6 +71,7 @@ USER_MANAGEMENT_BP = Blueprint("user_management", __name__,
 
 DATABASE = SQLAlchemy()
 LOGIN_MANGER = LoginManager()
+MAIL = Mail()
 
 @LOGIN_MANGER.unauthorized_handler
 def unauthorized_callback():
@@ -101,8 +105,11 @@ def create_app(database_path=join(CURR_DIR, ".login.db")):
                                        Defaults to the same dir as this file,
                                        with the name ".login.db"
 
+    Raises:
+        FileNotFoundError: the database dir or email config file not found
+
     Returns:
-        _type_: _description_
+        AppWithUserManagement: dataclass with the full app members
     """
     # make an configure the flask app with database
     app = Flask(__name__)
@@ -111,6 +118,11 @@ def create_app(database_path=join(CURR_DIR, ".login.db")):
     # pylint: disable=unused-variable
     bootstrap = Bootstrap(app) # needed to use bootstrap templates
     # pylint: enable=unused-variable
+
+    # set up email config - right now dictate where the json needs to be
+    configure_mail(app, join(CURR_DIR, "mail_config.json"))
+    MAIL.init_app(app)
+
     DATABASE.init_app(app)
     app.register_blueprint(USER_MANAGEMENT_BP, url_prefix="/UserManagement")
 
@@ -118,7 +130,7 @@ def create_app(database_path=join(CURR_DIR, ".login.db")):
     LOGIN_MANGER.init_app(app)
     LOGIN_MANGER.login_view = "login"
 
-    full_app = AppWithUserManagement(app, DATABASE, database_path)
+    full_app = AppWithUserManagement(app, DATABASE, database_path, MAIL)
     return full_app
 
 def init_db(full_app):
@@ -132,6 +144,25 @@ def init_db(full_app):
         with full_app.app.app_context():
             DATABASE.create_all()
             DATABASE.session.commit()
+
+def configure_mail(app, config_file_path):
+    """configures the app with the information to send emails
+
+    Args:
+        app (Flask): the flask app this is configuring
+        config_file_path (str): the path to the mail_config.json
+    """
+    with open(config_file_path, 'r') as config_file:
+        mail_config = json_load(config_file)
+
+    app.config['MAIL_SERVER'] = mail_config.get('MAIL_SERVER')
+    app.config['MAIL_PORT'] = mail_config.get('MAIL_PORT')
+    username = mail_config.get('MAIL_USERNAME')
+    app.config['MAIL_USERNAME'] = username
+    app.config['MAIL_DEFAULT_SENDER'] = username
+    app.config['MAIL_PASSWORD'] = mail_config.get('MAIL_PASSWORD')
+    app.config['MAIL_USE_TLS'] = mail_config.get('MAIL_USE_TLS')
+    app.config['MAIL_USE_SSL'] = mail_config.get('MAIL_USE_SSL')
 
 ### Common Fields Begin
 EMAIL_FIELD = dict(
@@ -424,7 +455,6 @@ def send_recover_email(email, token, username):
 # Unlock Start
 @USER_MANAGEMENT_BP.route("/unlock/<token>")
 def unlock_account(token):
-    # todo look at verify and recover to see how I can functionalize out Context manage?
     """Used when a user click on their unlock link
 
     Args:
@@ -585,6 +615,9 @@ def send_email(email, subject, content):
         content (str): the body of the email
     """
     print(f"send email: I would email '{email}' with\n'{subject}:\n\t{content}'")
+    msg = Message(subject, recipients=[email])
+    msg.body = content
+    MAIL.send(msg)
 
 @USER_MANAGEMENT_BP.route("/signup", methods=["GET", "POST"])
 def signup():

@@ -4,3 +4,4 @@ templates/dashboard.html
 templates/index.html
 templates/signup.html
 templates/login.html
+mail_config.json

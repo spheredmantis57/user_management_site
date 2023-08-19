@@ -7,6 +7,9 @@ starter code/html/css from: [this repo](https://github.com/PrettyPrinted/youtube
 - Added account recovery
 - Flashed information to make errors more obvious
 
+Sending email resources:
+
+
 # things to do
 - the actual sending of the verification link
 - make this actual README lol
