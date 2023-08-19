@@ -324,7 +324,6 @@ def login():
         return redirect(url_for("user_management.login"))
 
     # check for brute force attacks
-    print(f"{user.failed_logins = }")
     message = "Account locked. An unlock email has been sent"
     if user.failed_logins >= MAX_FAILED_LOGIN:
         # previously locked due to brute force
@@ -614,7 +613,6 @@ def send_email(email, subject, content):
         subject (str): the email subject
         content (str): the body of the email
     """
-    print(f"send email: I would email '{email}' with\n'{subject}:\n\t{content}'")
     msg = Message(subject, recipients=[email])
     msg.body = content
     MAIL.send(msg)
