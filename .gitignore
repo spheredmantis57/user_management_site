@@ -4,4 +4,8 @@ templates/dashboard.html
 templates/index.html
 templates/signup.html
 templates/login.html
+templates/forgot.html
+templates/recover.html
+templates/update_email.html
+templates/update_password.html
 mail_config.json

@@ -524,7 +524,7 @@ def dashboard():
     Returns:
         str: the html of the dashboard
     """
-    return render_template(DASHBOARD_PAGE, name=current_user.username)
+    return render_template(DASHBOARD_PAGE, user=current_user)
 
 @USER_MANAGEMENT_BP.route("/logout")
 @login_required
