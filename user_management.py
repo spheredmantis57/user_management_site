@@ -291,7 +291,10 @@ def index():
     Returns:
         str: the html of the page
     """
-    return render_template(INDEX_PAGE)
+    if current_user.is_authenticated:
+        return render_template(DASHBOARD_PAGE, user=current_user)
+    else:
+        return render_template(INDEX_PAGE)
 
 @USER_MANAGEMENT_BP.route('/static/<path:filename>')
 def serve_static(filename):
