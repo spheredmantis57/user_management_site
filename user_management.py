@@ -18,7 +18,7 @@ from wtforms.validators import InputRequired, Email, Length, EqualTo
 from flask_sqlalchemy  import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import (LoginManager, UserMixin, login_user, login_required,
-                         logout_user, current_user, fresh_login_required)
+                         logout_user, current_user)
 
 CURR_DIR = dirname(abspath(__file__))
 TEMPLATES = join(CURR_DIR, "templates")
@@ -722,7 +722,7 @@ class UpdatePasswordForm(FlaskForm):
     password_confirm = PasswordField(**PASSWORD_CONFIRM_FIELD)
 
 @USER_MANAGEMENT_BP.route("/update_email", methods=["GET", "POST"])
-@fresh_login_required
+@login_required
 def update_email():
     """updates a users email
 
@@ -745,7 +745,7 @@ def update_email():
     return render_template(EMAIL_UPDATE_PAGE, form=form)
 
 @USER_MANAGEMENT_BP.route("/update_password", methods=["GET", "POST"])
-@fresh_login_required
+@login_required
 def update_password():
     """updates a logged in users password
 
