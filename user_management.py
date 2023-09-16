@@ -9,7 +9,8 @@ import re
 from json import load as json_load
 from string import ascii_letters, digits
 from os.path import dirname, abspath, join, exists
-from flask import Flask, render_template, redirect, url_for, flash, Blueprint, send_from_directory
+from flask import (Flask, render_template, redirect, url_for, flash, Blueprint,
+                   send_from_directory, abort)
 from flask_mail import Mail, Message
 from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
@@ -293,8 +294,7 @@ def index():
     """
     if current_user.is_authenticated:
         return render_template(DASHBOARD_PAGE, user=current_user)
-    else:
-        return render_template(INDEX_PAGE)
+    return render_template(INDEX_PAGE)
 
 @USER_MANAGEMENT_BP.route('/static/<path:filename>')
 def serve_static(filename):
@@ -306,6 +306,10 @@ def serve_static(filename):
     Returns:
         str: the contents of the page
     """
+    # protect against directory traversal
+    if ".." in filename:
+        abort(404)
+
     return send_from_directory('static', filename)
 
 ########################## END: SET UP APP #####################################
